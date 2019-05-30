@@ -227,9 +227,36 @@ def setup():
     df = merge_datasets('data/lco_data/coj_2m0a_2016-02-01_2016-08-01')
     df = extract_additional_information(df)
 
+def plot_data(y_value_dict,x_value_list):
+    print "Plotting..."
+    bar_data = [
+        go.Bar(
+            x= x_value_list,
+            y=y_value_dict[key],
+            name=key
+        ) for key in y_value_dict
+    ]
+
+    layout = go.Layout(
+        barmode='stack',
+        xaxis={
+            'tickmode': 'linear',
+            'ticks': 'outside',
+            'tick0': 0,
+            'dtick': 0.25
+        }
+    )
+
+    fig = go.Figure(data=bar_data, layout=layout)
+    py.plot(fig,filename='plots/stacked-bar.html')
+
 def frame_ra_distribution(df):
-    intervals = 360
-    ra_bins_template = [ 0 for i in range(360)]
+    print "Counting RA values..."
+    # Convert RA to hours
+    # Convert Exposure time to hours
+    hour_intervals = 4.
+    total_bins = int(24 * hour_intervals)
+    ra_bins_template = [ 0 for i in range(total_bins)]
     proposal_ra = {}
     obs_frames = df.groupby('datetime')
     for time, framelist in obs_frames:
@@ -250,7 +277,7 @@ def frame_ra_distribution(df):
         proposal_id = row['PROPID'].iloc[0]
 
         try:
-            ra_bin = int(ra / 360. * intervals)
+            ra_bin = int(ra / 360. * total_bins)
         except Exception as e:
             print e
             print ra
@@ -259,45 +286,51 @@ def frame_ra_distribution(df):
             print ""
 
         try:
-            proposal_ra[proposal_id][ra_bin] += exposure
+            proposal_ra[proposal_id][ra_bin] += exposure / 3600.
         except:
             proposal_ra[proposal_id] = list(ra_bins_template)
-            proposal_ra[proposal_id][ra_bin] += exposure
+            proposal_ra[proposal_id][ra_bin] += exposure / 3600.
 
-    return proposal_ra
+    plot_data(proposal_ra,[ i / hour_intervals for i in range(24*hour_intervals)])
 
-def plot_data(results,degree_intervals):
+def plot_exposure_times(df):
+    print "Counting exposure times..."
+    obs_frames = df.groupby('datetime')
+    exposure_times = {}
+    for time, framelist in obs_frames:
+        exptime = framelist['EXPTIME'].unique()[0]
+        if float(exptime) == 0.0:
+            continue
+        try:
+            exposure_times[exptime] += 1
+        except KeyError:
+            exposure_times[exptime] = 1
+
+    x_values = [ x for x in exposure_times.keys() ]
+    y_values = [ y for x,y in exposure_times.items() ]
     bar_data = [
         go.Bar(
-            x= [ i / float(degree_intervals) for i in range(360 * degree_intervals)],
-            y=results[user],
-            name=user
-        ) for user in results
+            x=x_values,
+            y=y_values
+        )
     ]
 
     layout = go.Layout(
         barmode='stack',
-        xaxis={
-            'tickmode': 'linear',
-            'ticks': 'outside',
-            'tick0': 0,
-            'dtick': 1.
-        }
     )
 
     fig = go.Figure(data=bar_data, layout=layout)
-
     py.plot(fig,filename='plots/stacked-bar.html')
-
 
 ################################################################################
 
 if __name__ == '__main__':
     df = merge_datasets('data/lco_data/coj_2m0a_2016-02-01_2016-08-01')
     df = extract_additional_information(df)
-    results = frame_ra_distribution(df)
+    # frame_ra_distribution(df)
+    plot_exposure_times(df)
 
-    plot_data(results,1)
+
     # proposal_data = get_proposal_data(df)
 
 
