@@ -30,22 +30,30 @@ dir_base = pathjoin(dirname(abspath(__file__)),"data","lco_data")
 
 def download_data(param_dict):
     # Set directory for this dataset
-    main_dir = pathjoin(dir_base,
+    dir_path = pathjoin(dir_base,
         param_dict['SITEID'] + "_" + param_dict['TELID'] + "_" + \
         param_dict['start'].split()[0] + "_" + param_dict['end'].split()[0]
         )
-    if not os.path.isdir(main_dir):
-        os.mkdir(main_dir)
+    if not os.path.isdir(dir_path):
+        os.mkdir(dir_path)
+        
+    # TODO: Download files into a temporary folder, and then copy them over when
+    # the download is completed. Don't erase any existing files until the
+    # download is completed.
 
-    # Set directory for this specific download
-    dir_index = 0
-    while True:
-        dir_path = pathjoin(main_dir,"set_" + str(dir_index))
-        if os.path.isdir(dir_path):
-            dir_index += 1
-        else:
-            os.mkdir(dir_path)
-            break
+    # else:
+    #     # Data already exists, do we want to overwrite?
+    #     yesno = raw_input("Data folder '{}' already exists. Overwrite? [Y/n] ".format(\
+    #         dir_path))
+    #     if yesno in ("y","Y",""):
+    #         file_list = os.listdir(dir_path)
+    #         for filename in file_list:
+    #             if "datafile_" in filename or "_complete" in filename:
+    #                 os.remove(pathjoin(dir_path,filename))
+    #         print "Folder '{}' cleared for next download.".format(dir_path)
+    #     else:
+    #         print "Download aborted."
+    #         return
 
     url_base = "https://archive-api.lco.global/frames/?"
     encoded_params = urlencode(param_dict)
@@ -61,10 +69,10 @@ def download_data(param_dict):
     # Check length of download
     request_data = r.json()
     total_count = request_data['count']
-    # yn_continue = raw_input('Download {} entries? [Y/n] '.format(total_count))
-    # if yn_continue not in ('','y','Y'):
-    #     print "Download aborted."
-    #     return
+    yn_continue = raw_input('Download {} entries? [Y/n] '.format(total_count))
+    if yn_continue not in ('','y','Y'):
+        print "Download aborted."
+        return
 
     # Set up loop variables
     try:
