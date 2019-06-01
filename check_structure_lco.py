@@ -33,6 +33,7 @@ def check_request_homogeneity(df):
 
     req_grouper = group_generator(df,'REQNUM')
     trigger_cases = {}
+    multiple_target_type_set = set()
     while True:
         try:
             val, group = next(req_grouper)
@@ -40,6 +41,13 @@ def check_request_homogeneity(df):
                 for param in params_to_check:
                     if len(group[param].unique()) > 1:
                         print group[param].unique()
+
+                        print group['OBSTYPE'].unique()
+                        type_uniques = group['OBSTYPE'].unique()
+                        sorted_uniques = sorted(list(type_uniques))
+                        tuple_uniques = tuple(sorted_uniques)
+                        multiple_target_type_set.add(tuple_uniques)
+
                         try:
                             trigger_cases[param] += 1
                         except:
@@ -52,6 +60,8 @@ def check_request_homogeneity(df):
             print "Multiple unexpected values for {}".format(param)
         else:
             print "Parameter '{}' is homogeneous across requests".format(param)
+
+    print multiple_target_type_set
 
 def check_request_areas(df):
     # This one has to be done separately because the contained dicts are not
@@ -107,32 +117,32 @@ def check_exposure_homogeneity(df):
             types.update(set(g['OBSTYPE'].unique()))
         print "{}: {}".format(num,types)
 
-def check_arc_lampflat_previous_exposure(df):
-    # For spectrum exposures preceeded by a lampflat and arc, sometimes the
-    # calibration measurements will be while the telescope is pointng at a
-    # different target. Check whether this target is from the previous exposure
-    # (i.e. the telescope hasn't moved). Alternative theory is that it could be
-    # the previous Proposal target? Unlikely.
-    df_sorted = df.sort_values('DATE_OBS')
-    # relevant_cols = ['REQNUM','DATE_OBS','EXPTIME','INSTRUME','FILTER','OBJECT',
-    #     'OBSTYPE','RLEVEL','PROPID']
-    # req_grouper = df.groupby(df,['REQNUM'])
-    # previous = None
-    # while True:
-    #     val, group = next(grouper)
-    #     if len(group) > 1:
-    #         if len(group['OBJECT'].unique()) > 1:
-    #             print
-    data_dict = {}
-    grouped_by_request = df_sorted.groupby('REQNUM')
-    for val, group in grouped_by_request:
-        finish_time = group['DATE_OBS'].iloc[-1]
-        for index, _ in group.iterrows():
-            data_dict[index] = finish_time
-
-    df_sorted['finish_time'] = df.index.to_series().apply(lambda x: data_dict[x])
-    print df_sorted
-    return
+# def check_arc_lampflat_previous_exposure(df):
+#     # For spectrum exposures preceeded by a lampflat and arc, sometimes the
+#     # calibration measurements will be while the telescope is pointng at a
+#     # different target. Check whether this target is from the previous exposure
+#     # (i.e. the telescope hasn't moved). Alternative theory is that it could be
+#     # the previous Proposal target? Unlikely.
+#     df_sorted = df.sort_values('DATE_OBS')
+#     # relevant_cols = ['REQNUM','DATE_OBS','EXPTIME','INSTRUME','FILTER','OBJECT',
+#     #     'OBSTYPE','RLEVEL','PROPID']
+#     # req_grouper = df.groupby(df,['REQNUM'])
+#     # previous = None
+#     # while True:
+#     #     val, group = next(grouper)
+#     #     if len(group) > 1:
+#     #         if len(group['OBJECT'].unique()) > 1:
+#     #             print
+#     data_dict = {}
+#     grouped_by_request = df_sorted.groupby('REQNUM')
+#     for val, group in grouped_by_request:
+#         finish_time = group['DATE_OBS'].iloc[-1]
+#         for index, _ in group.iterrows():
+#             data_dict[index] = finish_time
+#
+#     df_sorted['finish_time'] = df.index.to_series().apply(lambda x: data_dict[x])
+#     print df_sorted
+#     return
 
 
 
@@ -146,13 +156,33 @@ def check_arc_lampflat_previous_exposure(df):
     #             print group.loc[:,look_for]
     #         x = raw_input("")
 
+def reduce_frames(df):
+    obs_groups = df.groupby('datetime')
+    print "Expected number of frames:", len(obs_groups)
 
+    for d, obs_frames in obs_groups:
+        temp = obs_frames[ obs_frames['RLEVEL'] == obs_frames['RLEVEL'].max() ]
+        if len(temp) > 1:
+            unique_values = [ tuple(sorted(arr)) for arr in temp[['RLEVEL','OBSTYPE']].values ]
+            if len(pd.unique(unique_values)) == 1:
+                for c in temp[['datetime','EXPTIME','FILTER','INSTRUME','OBJECT','OBSTYPE','PROPID','REQNUM','RLEVEL','RA','DEC']].columns:
+                    if len(temp[c].unique()) > 1:
+                        print temp[c]
+            else:
+                print pd.unique(unique_values)
+
+    new_df = pd.concat([
+        obs_frames[ obs_frames['RLEVEL'] == obs_frames['RLEVEL'].max() ]
+        for d, obs_frames in obs_groups ]
+    )
+    print "Actual number of frames:", len(new_df)
+    print "Success!"
 
 ################################################################################
 
 if __name__ == '__main__':
     df = merge_datasets('data/lco_data/coj_2m0a_2016-02-01_2016-08-01')
-    # check_reqnums(df)
-    # check_request_homogeneity(df)
+    check_reqnums(df)
+    check_request_homogeneity(df)
     # check_exposure_homogeneity(df)
-    check_arc_lampflat_previous_exposure(df)
+    # check_arc_lampflat_previous_exposure(df)

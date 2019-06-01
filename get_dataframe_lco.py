@@ -2,10 +2,13 @@ import pandas as pd
 import json, os, sys
 import datetime as dt
 from os.path import join as pathjoin
-from numpy import mean, std, floor
+from numpy import mean, std, floor, log10
 
 import plotly.offline as py
 import plotly.graph_objs as go
+
+desired_columns = ['datetime','BLKUID','EXPTIME','FILTER','INSTRUME','OBJECT',
+    'OBSTYPE','PROPID','REQNUM','RLEVEL','RA','DEC']
 
 def merge_datasets(dir_path):
     print "Loading Dataframe..."
@@ -61,6 +64,28 @@ def extract_additional_information(df):
     df = convert_dates_obs(df)
     df = add_ra_dec(df)
     return df
+
+def remove_unnecessary_columns(df):
+    # Strip all unnecessary column
+    global desired_columns
+    df = df[ desired_columns ]
+    return df
+
+def reduce_frames(df):
+    print "Reducing frames..."
+    obs_groups = df.groupby('datetime')
+    expected_frames = len(obs_groups)
+
+    new_df = pd.concat([
+        obs_frames[ obs_frames['RLEVEL'] == obs_frames['RLEVEL'].max() ].head(1)
+        for d, obs_frames in obs_groups ]
+    )
+
+    resultant_frames = len(new_df)
+    if resultant_frames != expected_frames:
+        print "Unexpected number of frames returned: {} expected, {} received.".format(\
+            expected_frames, resultant_frames)
+    return new_df
 
 def check_groups(df,group_on,check,look_for=None):
     grouper = group_generator(df,group_on)
@@ -125,10 +150,6 @@ def get_proposal_data(df):
     # Add in additional information
     df = convert_dates_obs(df)
     df = add_ra_dec(df)
-    # Strip all unnecessary column
-    desired_columns = ['datetime','EXPTIME','FILTER','INSTRUME','OBJECT',
-        'OBSTYPE','PROPID','REQNUM','RLEVEL','RA','DEC']
-    df = df[ desired_columns ]
     # Split all information up into proposals
     print "Grouping frames..."
     total_frames = 0
@@ -254,8 +275,8 @@ def frame_ra_distribution(df):
     print "Counting RA values..."
     # Convert RA to hours
     # Convert Exposure time to hours
-    hour_intervals = 4.
-    total_bins = int(24 * hour_intervals)
+    hour_intervals = 4
+    total_bins = int(24 * int(hour_intervals))
     ra_bins_template = [ 0 for i in range(total_bins)]
     proposal_ra = {}
     obs_frames = df.groupby('datetime')
@@ -306,29 +327,210 @@ def plot_exposure_times(df):
         except KeyError:
             exposure_times[exptime] = 1
 
-    x_values = [ x for x in exposure_times.keys() ]
-    y_values = [ y for x,y in exposure_times.items() ]
+    # Binning the data
+    x_values = [ log10(float(x)) for x in exposure_times.keys() ]
+    max_value = int(max(x_values)) + 1
+    min_value = int(min(x_values))
+
+    print max_value, min_value
+
+    x_bins = [ round(10**(i / 10.),1) for i in range(min_value*10, max_value*10, 1) ]
+    y_bins = [ 0 for i in x_bins ]
+
+    for x, y in exposure_times.items():
+        x_value = log10(float(x))
+        bin = int(floor((x_value - min_value) / 0.1))
+        y_bins[bin] += y
+    print x_bins
+
     bar_data = [
         go.Bar(
-            x=x_values,
-            y=y_values
+            x=x_bins,
+            y=y_bins
         )
     ]
 
     layout = go.Layout(
-        barmode='stack',
+        xaxis=dict(
+            type='log',
+            autorange=True
+        )
     )
 
-    fig = go.Figure(data=bar_data, layout=layout)
+    fig = go.Figure(data=bar_data,layout=layout)
     py.plot(fig,filename='plots/stacked-bar.html')
+
+def contiguous(df):
+    blkuid_dict = {}
+    for i, g in df.groupby([(df.BLKUID != df.BLKUID.shift()).cumsum()]):
+        blkuid = g.BLKUID.unique()[0]
+        try:
+            blkuid_dict[blkuid] += 1
+        except KeyError:
+            blkuid_dict[blkuid] = 1
+
+    for val, num in blkuid_dict.items():
+        if num > 1:
+            print val, num
+        else:
+            del blkuid_dict[val]
+
+    return blkuid_dict.keys()
+
+def check_contiguous(df,blkuid):
+    for i, g in df.groupby([(df.BLKUID != df.BLKUID.shift()).cumsum()]):
+        if tuple(g.BLKUID.unique())[0] == blkuid:
+            print g
+            print ""
+
+def verify_contiguous(df,blkuid):
+    print blkuid
+    subset = df[ df.BLKUID == blkuid ]
+    print subset['OBSTYPE'].unique()
+    print subset['PROPID'].unique()
+
+def check_calibration(df,blkuid):
+    subset = df[ df.BLKUID == blkuid ]
+    obstypes = subset.OBSTYPE.unique()
+    if 'EXPOSE' in obstypes or 'SPECTRUM' in obstypes:
+        return False
+    else:
+        return True
+
+def vc(df):
+    non_contiguous = contiguous(df)
+    interleafed_types = set()
+    for blkuid in non_contiguous:
+        if not check_calibration(df,blkuid):
+            # get_time_diff(df,blkuid)
+            # check_contiguous(df,blkuid)
+            for t in get_inbetween(df,blkuid,'OBSTYPE'):
+                interleafed_types.add(t)
+            # print "\n---\n"
+        #verify_contiguous(df,blkuid)
+    print interleafed_types
+
+def get_inbetween(df,blkuid,param):
+    subset = df[ df.BLKUID == blkuid ]
+    start_time = subset.datetime.min()
+    end_time = subset.datetime.max()
+    new_subset = df[ (df.datetime >= start_time) & (df.datetime <= end_time) & \
+        (df.BLKUID != blkuid)]
+    return new_subset[param].unique()
+
+def get_time_diff(df,blkuid):
+    subset = df[ df.BLKUID == blkuid ]
+    start_time = subset.datetime.min()
+    end_time = subset.datetime.max()
+    time_diff = end_time - start_time
+    print time_diff
+
+# def contiguous(df):
+#     reqnum_dict = {}
+#     for i, g in df.groupby([(df.REQNUM != df.REQNUM.shift()).cumsum()]):
+#         reqnum = g.REQNUM.unique()[0]
+#         try:
+#             reqnum_dict[reqnum] += 1
+#         except KeyError:
+#             reqnum_dict[reqnum] = 1
+#
+#     for val, num in reqnum_dict.items():
+#         if num > 1:
+#             print val, num
+#         else:
+#             del reqnum_dict[val]
+#
+#     return reqnum_dict.keys()
+#
+# def check_contiguous(df,reqnum):
+#     for i, g in df.groupby([(df.REQNUM != df.REQNUM.shift()).cumsum()]):
+#         if tuple(g.REQNUM.unique())[0] == reqnum:
+#             print g
+#             print ""
+#
+# def verify_contiguous(df,reqnum):
+#     print reqnum
+#     subset = df[ df.REQNUM == reqnum ]
+#     print subset['OBSTYPE'].unique()
+#     print subset['PROPID'].unique()
+#
+# def check_calibration(df,reqnum):
+#     subset = df[ df.REQNUM == reqnum ]
+#     obstypes = subset.OBSTYPE.unique()
+#     if 'EXPOSE' in obstypes or 'SPECTRUM' in obstypes:
+#         return False
+#     else:
+#         return True
+#
+# def vc(df):
+#     non_contiguous = contiguous(df)
+#     interleafed_types = set()
+#     for reqnum in non_contiguous:
+#         if not check_calibration(df,reqnum):
+#             # get_time_diff(df,reqnum)
+#             # check_contiguous(df,reqnum)
+#             for t in get_inbetween(df,reqnum,'OBSTYPE'):
+#                 interleafed_types.add(t)
+#             # print "\n---\n"
+#         #verify_contiguous(df,reqnum)
+#     print interleafed_types
+#
+# def get_inbetween(df,reqnum,param):
+#     subset = df[ df.REQNUM == reqnum ]
+#     start_time = subset.datetime.min()
+#     end_time = subset.datetime.max()
+#     new_subset = df[ (df.datetime >= start_time) & (df.datetime <= end_time) & \
+#         (df.REQNUM != reqnum)]
+#     return new_subset[param].unique()
+#
+# def get_time_diff(df,reqnum):
+#     subset = df[ df.REQNUM == reqnum ]
+#     start_time = subset.datetime.min()
+#     end_time = subset.datetime.max()
+#     time_diff = end_time - start_time
+#     print time_diff
+
+
+def extract_blocks(df):
+    block_groups = df.groupby('BLKUID')
+
+# XXX: Check whether all BKLUID chunks are contiguous (except for calibration frames)
+# i.e. If we look at each block, are there any large gaps in between (e.g. daytime)? 
+
+# TODO:
+# Extract scheduling 'blocks' by grouping by BLKUID
+# Each block object should contain:
+#   Start Time
+#   End Time
+#   Target
+#   Duration (total duration of the block)
+#   Total Exposure time (only used telescope time within the block)
+#           - maybe this should be only Science Frame time?
+#   Efficiency - Total Exposure Time as a fraction of Total Duration
+#   Whether or not the block is an 'orphaned' block (no science frames)
+#   Whether or not the target is a moving object
+#       - classified as the coordinates moving more than 2 arcseconds during a
+#           block. Anything less and the block is assumed to be stationary (even
+#           if the object is technically moving).
+#
+# Create a plotly histogram of distributions of block types for each proposal
+# Attempt to use distributions to create sample observations for certain
+#   proposal types
+# See if we can guess the proposal type from the block distribution
+#
+# Check that the 'area' attribute of frames IS measured in RA and Dec
 
 ################################################################################
 
 if __name__ == '__main__':
     df = merge_datasets('data/lco_data/coj_2m0a_2016-02-01_2016-08-01')
     df = extract_additional_information(df)
+    df = reduce_frames(df)
     # frame_ra_distribution(df)
-    plot_exposure_times(df)
+    df = remove_unnecessary_columns(df)
+    df = df.sort_values('datetime').reset_index(drop=True)
+    vc(df)
+    # plot_exposure_times(df)
 
 
     # proposal_data = get_proposal_data(df)
