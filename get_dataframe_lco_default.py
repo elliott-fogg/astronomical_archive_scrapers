@@ -188,7 +188,7 @@ def extract_science_blocks(all_df):
         # targets
         target = extract_target(block)
         # mean_ra and mean_dec
-        mean_ra = block.RA.mean()
+        mean_ra = block.RA.mean() / 15. # In Hours
         mean_dec = block.DEC.mean()
         # moving - Difference of > 4 arcseconds over block
         if (abs(first_row.RA.iloc[0] - last_row.RA.iloc[0]) > 0.001) or \
@@ -217,7 +217,8 @@ def extract_science_blocks(all_df):
             instrument = tuple(sorted(instrument_list))
         else:
             instrument = instrument_list[0]
-
+        # science_exposure_times
+        science_exposure_times = tuple(block_sci.EXPTIME)
 
         block_list.append({
             'blkuid': blkuid,
@@ -238,23 +239,24 @@ def extract_science_blocks(all_df):
             'orphan': orphan,
             'reqnum': reqnum,
             'instrument': instrument,
-            'num_exposures': num_exposures
+            'num_exposures': num_exposures,
+            'science_exposure_times': science_exposure_times
         })
 
     return pd.DataFrame(block_list)
 
-def setup():
+def setup(return_raw=False):
     print "Loading Dataframe..."
-    df = merge_datasets('data/lco_data/coj_2m0a_2016-02-01_2016-08-01')
+    raw = merge_datasets('data/lco_data/coj_2m0a_2016-02-01_2016-08-01')
 
     print "Converting dates to datetime objects..."
-    df['datetime'] = df['DATE_OBS'].apply(str_to_datetime)
+    raw['datetime'] = raw['DATE_OBS'].apply(str_to_datetime)
 
     print "Extracting RA and Dec..."
-    df[['RA','DEC']] = df['area'].apply(get_centroid)
+    raw[['RA','DEC']] = raw['area'].apply(get_centroid)
 
     print "Dropping excess columns..."
-    df = df[ desired_columns ]
+    df = raw[ desired_columns ]
 
     print "Reducing frames..."
     df = reduce_frames(df)
@@ -268,7 +270,10 @@ def setup():
     print "Extracting science blocks..."
     block_list = extract_science_blocks(df)
 
-    return df, block_list
+    if return_raw:
+        return df, block_list, raw
+    else:
+        return df, block_list
 
 if __name__ == '__main__':
     df, bl = setup()
