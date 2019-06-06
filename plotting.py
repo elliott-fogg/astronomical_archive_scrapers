@@ -2,7 +2,10 @@ import plotly.offline as py
 import plotly.graph_objs as go
 from get_dataframe_lco_default import *
 import datetime
-from numpy import log10
+from numpy import log10, finfo
+
+# TODO: Ensure all graphs have correct units, axis labels and titles
+#       Check fits data for 0-second spectrum frames
 
 ## Patterns by Proposal
 def print_proposal_patterns(block_list):
@@ -14,6 +17,7 @@ def print_proposal_patterns(block_list):
         for p in sorted(pattern_list,key=lambda x: x[0],reverse=True):
             print p[0], p[1]
         print ""
+
 
 ## Time Distribution
 def plot_obstype_time_distribution(df):
@@ -29,30 +33,37 @@ def plot_obstype_time_distribution(df):
 
     timebin_data = {}
     for obstype, type_group in df.groupby('OBSTYPE'):
-        type_timebins = [0 for _ in range(24*4)]
+        x_data = [i / 4. for i in range(24*4)]
+        y_data = [0 for _ in range(24*4)]
         for timebin, timebin_group in type_group.groupby('timebin'):
-            type_timebins[timebin] = len(timebin_group)
+            y_data[timebin] = len(timebin_group)
+        type_timebins = [(x_data[i],y_data[i]) for i in range(24*4) if y_data[i] != 0]
         timebin_data[obstype] = type_timebins
 
-    x_values = [i / 4. for i in range(24*4)]
     bar_data = [
         go.Bar(
-            x=x_values,
-            y=timebin_data[obstype],
+            x=[e[0] for e in data],
+            y=[e[1] for e in data],
             name=obstype
-        ) for obstype in timebin_data
+        ) for obstype, data in timebin_data.items()
     ]
     layout = go.Layout(
         barmode='stack',
+        title='Time-of-Day (UT) distribution of different Observation Types',
         xaxis={
             'tickmode': 'linear',
             'ticks': 'outside',
             'tick0': 0,
-            'dtick': 0.25
+            'dtick': 0.25,
+            'title': 'Time of day (UT)'
+        },
+        yaxis={
+            'title': 'Number of observations'
         }
     )
     fig = go.Figure(data=bar_data, layout=layout)
     py.plot(fig,filename='plots/lco_coj_obstype_time_distribution.html')
+
 
 ## Orphaned Calibration Frames
 def get_orphan_data(bl):
@@ -150,13 +161,14 @@ def plot_orphan_proportions(orphan_data):
     ]
     layout = go.Layout(
         barmode='stack',
-        title='Orphaned vs Not Orphaned time',
+        title='Orphaned (Scheduled Block with no Science Frame) vs Non-Orphaned time',
         yaxis={
             'title': 'Debited Time (Hours)'
         }
     )
     fig = go.Figure(data=bar_data,layout=layout)
     py.plot(fig,filename='plots/lco_coj_orphan_portions.html')
+
 
 ### Distribution of science exposure times per proposal (layered histogram)
 def plot_science_exposure_times_default(bl):
@@ -249,8 +261,8 @@ def plot_science_exposure_times_log(bl):
             x=[log10(float(p)) for p in data],
             y=[data[p] for p in data],
             name=propid,
-            text=["{}s<br>{}".format(\
-                round(float(p),1), data[p]) for p in data],
+            text=["Length: <em>{}</em>s<br>Count: <em>{}</em>".format(\
+                int(float(p)), data[p]) for p in data],
             hoverinfo='text+name'
         ) for propid, data in sci_exp_data.items()
     ]
@@ -263,8 +275,12 @@ def plot_science_exposure_times_log(bl):
         title='Exposure Time Distribution',
         xaxis=go.layout.XAxis(
             ticktext=labels,
-            tickvals=tickvals
+            tickvals=tickvals,
+            title='Exposure Time (s)'
         ),
+        yaxis={
+            'title': 'Count'
+        }
     )
     fig = go.Figure(data=bar_data,layout=layout)
     py.plot(fig,filename='plots/lco_coj_exposure_distribution_log.html')
@@ -302,11 +318,15 @@ def plot_science_exposure_sums(bl):
 
     layout = go.Layout(
         barmode='stack',
-        title='Exposure Time Distribution',
+        title='Exposure Sum (Sum of all science exposures in a single block) Distribution',
         xaxis=go.layout.XAxis(
             ticktext=labels,
-            tickvals=tickvals
+            tickvals=tickvals,
+            title='Sum Exposure Length (s)'
         ),
+        yaxis={
+            'title': 'Count'
+        }
     )
     fig = go.Figure(data=bar_data,layout=layout)
     py.plot(fig,filename='plots/lco_coj_exposure_sum_distribution_log.html')
@@ -314,18 +334,21 @@ def plot_science_exposure_sums(bl):
 
 ### mean_ra distribution per proposal
 def plot_mean_ra_by_count(bl):
+    # This also includes moving targets. Should it not?
     ra_data = {}
     bl['ra_bin'] = bl.mean_ra.apply(lambda x: int(x*4.))
     for propid, prop_group in bl.groupby('propid'):
-        prop_data = [ 0 for _ in range(24*4) ]
+        x_data = [i/4. for i in range(24*4)]
+        y_data = [ 0 for _ in range(24*4) ]
         for bin_num in prop_group['ra_bin']:
-            prop_data[bin_num] += 1
+            y_data[bin_num] += 1
+        prop_data = [(x_data[i],y_data[i]) for i in range(24*4) if y_data[i] != 0]
         ra_data[propid] = prop_data
 
     bar_data = [
         go.Bar(
-            x=[i/4. for i in range(24*4)],
-            y=data,
+            x=[e[0] for e in data],
+            y=[e[1] for e in data],
             name=propid
         ) for propid, data in ra_data.items()
     ]
@@ -346,17 +369,19 @@ def plot_mean_ra_by_time(bl):
     ra_data = {}
     bl['ra_bin'] = bl.mean_ra.apply(lambda x: int(x*4.))
     for propid, prop_group in bl.groupby('propid'):
-        prop_data = [ 0 for _ in range(24*4) ]
+        x_data = [ i/4. for i in range(24*4) ]
+        y_data = [ 0 for _ in range(24*4) ]
         for row in prop_group[['ra_bin','science_exposure_sum']].values:
             bin_num = int(row[0])
             exp_time = row[1] / 3600.
-            prop_data[bin_num] += exp_time
+            y_data[bin_num] += exp_time
+        prop_data = [ (x_data[i],round(y_data[i],2)) for i in range(24*4) if y_data[i] != 0]
         ra_data[propid] = prop_data
 
     bar_data = [
         go.Bar(
-            x=[i/4. for i in range(24*4)],
-            y=data,
+            x=[e[0] for e in data],
+            y=[round(e[1],2) for e in data],
             name=propid
         ) for propid, data in ra_data.items()
     ]
@@ -376,18 +401,31 @@ def plot_mean_ra_by_time(bl):
 
 ### mean_dec distribution per proposal
 def plot_mean_dec_by_count(bl):
+    # This also includes moving targets. Should it not?
     dec_data = {}
     bl['dec_bin'] = bl.mean_dec.apply(lambda x: int(x/10.)+9)
     for propid, prop_group in bl.groupby('propid'):
-        prop_data = [ 0 for _ in range(19) ]
+        x_data = [(i-9)*10 for i in range(19)]
+        y_data = [0 for _ in range(19)]
         for bin_num in prop_group['dec_bin']:
-            prop_data[bin_num] += 1
+            y_data[bin_num] += 1
+        prop_data = [(x_data[i],y_data[i]) for i in range(19) if y_data[i] != 0]
         dec_data[propid] = prop_data
 
     bar_data = [
         go.Bar(
             x=[(i-9)*10 for i in range(19)],
-            y=data,
+            y=[0 for _ in range(19)],
+            hoverinfo='none',
+            showlegend=False
+        )
+    ]
+    bar_data += [
+        go.Bar(
+            x=[e[0] for e in data],
+            y=[e[1] for e in data],
+            text=[str(e[1]) for e in data],
+            hoverinfo='text+name',
             name=propid
         ) for propid, data in dec_data.items()
     ]
@@ -405,20 +443,33 @@ def plot_mean_dec_by_count(bl):
     py.plot(fig,filename='plots/lco_coj_dec_count.html')
 
 def plot_mean_dec_by_time(bl):
+    # This also includes moving targets. Should it not?
     dec_data = {}
     bl['dec_bin'] = bl.mean_dec.apply(lambda x: int(x/10.)+9)
     for propid, prop_group in bl.groupby('propid'):
-        prop_data = [ 0 for _ in range(19) ]
+        x_data = [(i-9)*10 for i in range(19)]
+        y_data = [0 for _ in range(19)]
         for row in prop_group[['dec_bin','science_exposure_sum']].values:
             bin_num = int(row[0])
             exp_time = row[1] / 3600.
-            prop_data[bin_num] += exp_time
+            y_data[bin_num] += exp_time
+        prop_data = [(x_data[i],round(y_data[i],2)) for i in range(19) if y_data[i] != 0]
         dec_data[propid] = prop_data
 
     bar_data = [
         go.Bar(
             x=[(i-9)*10 for i in range(19)],
-            y=data,
+            y=[0 for _ in range(19)],
+            hoverinfo='none',
+            showlegend=False
+        )
+    ]
+    bar_data += [
+        go.Bar(
+            x=[e[0] for e in data],
+            y=[e[1] for e in data],
+            text=[str(e[1]) for e in data],
+            hoverinfo='text+name',
             name=propid
         ) for propid, data in dec_data.items()
     ]
@@ -426,7 +477,7 @@ def plot_mean_dec_by_time(bl):
         barmode='stack',
         title='Dec. Distribution',
         xaxis={
-            'title': 'Declination (Hours)'
+            'title': 'Declination (Degrees)'
         },
         yaxis={
             'title': 'Total Science Exposure Time (Hrs)'
@@ -444,31 +495,37 @@ def plot_mean_dec_by_time(bl):
 def plot_science_exposure_efficiency(bl):
     eff_data = []
     for propid, prop_group in bl.groupby('propid'):
-        total_exposure_time = prop_group.exposure_sum.sum() / 3600.
-        science_exposure_time = prop_group.science_exposure_sum.sum() / 3600.
-        eff_data.append( (propid, total_exposure_time, science_exposure_time) )
+        tot_exp_time = prop_group.exposure_sum.sum() / 3600.
+        sci_exp_time = prop_group.science_exposure_sum.sum() / 3600.
+
+        eff_data.append( (propid, tot_exp_time, sci_exp_time) )
 
 
     bar_data = [
         go.Bar(
             x=[ e[0] for e in eff_data ],
-            y=[ e[1] for e in eff_data ],
-            name='Total',
-            marker={
-                'color': 'rgb(255,0,0)'
-            }
-        ),
-        go.Bar(
-            x=[ e[0] for e in eff_data ],
             y=[ e[2] for e in eff_data ],
             name='Science',
             marker={
+                'color': 'rgb(255,0,0)'
+            },
+            hoverinfo='none'
+        ),
+        go.Bar(
+            x=[ e[0] for e in eff_data ],
+            y=[ e[1]-e[2] for e in eff_data ],
+            name='Calibration',
+            marker={
                 'color': 'rgb(255,180,0)'
-            }
+            },
+            text=["Calibration: {} ({}%)<br>Science: {} ({}%)".format(\
+                round(e[1]-e[2],1),round((e[1]-e[2])/e[1]*100.,1),round(e[2],1),
+                round(e[2]/e[1]*100.,1)) for e in eff_data],
+            hoverinfo='text'
         )
     ]
     layout = go.Layout(
-        barmode='overlay',
+        barmode='stack',
         title='Science vs Total Exposure Time',
         yaxis={
             'title': 'Exposure Time (Hours)'
@@ -478,11 +535,157 @@ def plot_science_exposure_efficiency(bl):
     py.plot(fig,filename='plots/lco_coj_science_efficiency.html')
 
 # Percentage of moving targets per proposal
+def plot_moving_count(bl):
+    move_data = []
+    for propid, prop_group in bl.groupby('propid'):
+        move = len(prop_group[ prop_group.moving == True ])
+        stat = len(prop_group[ prop_group.moving == False ])
+        ratio = move / (move + stat + finfo(float).eps) * 100.
+        move_data.append( (propid, move, stat, ratio) )
 
+    move_data.sort(key=lambda x: x[3],reverse=True)
+
+    bar_data = [
+        go.Bar(
+            x=[ e[0] for e in move_data ],
+            y=[ e[2] for e in move_data ],
+            name='Stationary',
+            hoverinfo='none',
+        ),
+        go.Bar(
+            x=[ e[0] for e in move_data ],
+            y=[ e[1] for e in move_data ],
+            name='Moving',
+            text=[ "Moving: {} ({}%)<br>Stationary: {} ({}%)".format(\
+                e[1], round(e[3],1), e[2], round(100.-e[3],1)) for e in move_data],
+            hoverinfo='text',
+        )
+    ]
+    layout = go.Layout(
+        barmode='stack',
+        title='Proportions of Moving Targets (Count)',
+        yaxis={
+            'title': 'Observations'
+        }
+    )
+    fig = go.Figure(data=bar_data,layout=layout)
+    py.plot(fig,filename='plots/lco_coj_moving_count.html')
+
+def plot_moving_time(bl):
+    move_data = []
+    for propid, prop_group in bl.groupby('propid'):
+        move = prop_group[ prop_group.moving == True \
+            ].science_exposure_sum.sum() / 3600.
+        stat = prop_group[ prop_group.moving == False \
+            ].science_exposure_sum.sum() / 3600.
+        ratio = move / (move + stat + finfo(float).eps) * 100.
+        move_data.append( (propid, move, stat, ratio) )
+
+    move_data.sort(key=lambda x: x[3],reverse=True)
+
+    bar_data = [
+        go.Bar(
+            x=[ e[0] for e in move_data ],
+            y=[ e[2] for e in move_data ],
+            name='Stationary',
+            hoverinfo='none',
+        ),
+        go.Bar(
+            x=[ e[0] for e in move_data ],
+            y=[ e[1] for e in move_data ],
+            name='Moving',
+            text=[ "Moving: {} ({}%)<br>Stationary: {} ({}%)".format(\
+                round(e[1],2), round(e[3],1), round(e[2],2), round(100.-e[3],1))
+                for e in move_data],
+            hoverinfo='text',
+        )
+    ]
+    layout = go.Layout(
+        barmode='stack',
+        title='Proportions of Moving Targets (Exposure Time)',
+        yaxis={
+            'title': 'Exposure Time (hours)'
+        }
+    )
+    fig = go.Figure(data=bar_data,layout=layout)
+    py.plot(fig,filename='plots/lco_coj_moving_time.html')
 
 # Use of telescope instruments per proposal
-def plot_instrument_usage(bl):
-    instrume_data = {}
+def plot_instrument_count(bl):
+    inst_data = []
+    for propid, prop_group in bl.groupby('propid'):
+        i_en05 = len(prop_group[ prop_group.instrument == 'en05' ])
+        i_fs01 = len(prop_group[ prop_group.instrument == 'fs01' ])
+        ratio = i_en05 / (i_en05 + i_fs01 + finfo(float).eps) * 100.
+        inst_data.append( (propid, i_en05, i_fs01, ratio) )
+
+    inst_data.sort(key=lambda x: x[3],reverse=True)
+
+    bar_data = [
+        go.Bar(
+            x=[ e[0] for e in inst_data ],
+            y=[ e[1] for e in inst_data ],
+            name='en05',
+            hoverinfo='none',
+        ),
+        go.Bar(
+            x=[ e[0] for e in inst_data ],
+            y=[ e[2] for e in inst_data ],
+            name='fs01',
+            text=[ "fs01: {} ({}%)<br>en05: {} ({}%)".format(\
+                e[2], round(100.-e[3],1), e[1], round(e[3],1)) for e in inst_data],
+            hoverinfo='text',
+        )
+    ]
+    layout = go.Layout(
+        barmode='stack',
+        title='Proportions of Instrument Usage (Count)',
+        yaxis={
+            'title': 'Observations per instrument'
+        }
+    )
+    fig = go.Figure(data=bar_data,layout=layout)
+    py.plot(fig,filename='plots/lco_coj_instrument_count.html')
+
+def plot_instrument_time(bl):
+    inst_data = []
+    for propid, prop_group in bl.groupby('propid'):
+        i_en05 = prop_group[ prop_group.instrument == 'en05' \
+            ].science_exposure_sum.sum() / 3600.
+        i_fs01 = prop_group[ prop_group.instrument == 'fs01' \
+            ].science_exposure_sum.sum() / 3600.
+        ratio = i_en05 / (i_en05 + i_fs01 + finfo(float).eps) * 100.
+        inst_data.append( (propid, i_en05, i_fs01, ratio) )
+
+    inst_data.sort(key=lambda x: x[3],reverse=True)
+
+    bar_data = [
+        go.Bar(
+            x=[ e[0] for e in inst_data ],
+            y=[ e[1] for e in inst_data ],
+            name='en05',
+            hoverinfo='none',
+        ),
+        go.Bar(
+            x=[ e[0] for e in inst_data ],
+            y=[ e[2] for e in inst_data ],
+            name='fs01',
+            text=[ "fs01: {} ({}%)<br>en05: {} ({}%)".format(\
+                round(e[2],2), round(100.-e[3],1), round(e[1],2), round(e[3],1))
+                for e in inst_data],
+            hoverinfo='text',
+        )
+    ]
+    layout = go.Layout(
+        barmode='stack',
+        title='Proportions of Instrument Usage (Exposure Time)',
+        yaxis={
+            'title': 'Exposure Time per instrument (hours)'
+        }
+    )
+    fig = go.Figure(data=bar_data,layout=layout)
+    py.plot(fig,filename='plots/lco_coj_instrument_time.html')
+
 
 # Distribution of observation-starts over the semester (e.g. chunk into 5-day
 # bins) for each proposal.
@@ -505,7 +708,11 @@ def plot_all_graphs():
     #
     plot_science_exposure_efficiency(bl)
     #
-
+    plot_instrument_count(bl)
+    plot_instrument_time(bl)
+    #
+    plot_moving_count(bl)
+    plot_moving_time(bl)
 
 
 def clear_all_graphs():
