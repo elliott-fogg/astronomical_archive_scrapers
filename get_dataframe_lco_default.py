@@ -276,4 +276,4 @@ def setup(return_raw=False):
         return df, block_list
 
 if __name__ == '__main__':
-    df, bl = setup()
+    df, bl, raw = setup(True)
