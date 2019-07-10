@@ -3,32 +3,57 @@ from urllib import urlencode
 from os.path import dirname, abspath
 from os.path import join as pathjoin
 
-param_sets = [
-    {
-        "start": "2016-02-01 00:00",
-        "end": "2016-08-01 00:00",
-        "public": "true",
-        "SITEID": "coj",
-        "TELID": "2m0a",
-        "limit": "100"
-    },
-    {
-        "start": "2016-02-01 00:00",
-        "end": "2016-08-01 00:00",
-        "public": "true",
-        "SITEID": "ogg",
-        "TELID": "2m0a",
-        "limit": "100"
-    }
-]
 
 if not os.path.isdir('data'):
     os.mkdir('data')
 
 # Set base data directory
-dir_base = pathjoin(dirname(abspath(__file__)),"data","lco_data")
+dir_base = pathjoin(dirname(abspath(__file__)),"data","lco")
+if not os.path.isdir(dir_base):
+    os.mkdir(dir_base)
 
-def download_data(param_dict):
+def create_data_name(param_dict):
+    if param_dict['type'] == 'lco':
+        data_name = pathjoin("lco",
+            "_".join([param_dict['SITEID'],param_dict['TELID'],
+                param_dict['start'].split()[0], param_dict['end'].split()[0]]))
+    else:
+        print "No valid type in param_dict:"
+        print param_dict
+        return
+    return data_name
+
+def list_datasets(select=False):
+    datasets = json.load(open("dataset_parameters.txt","r"))
+    if not select:
+        for paramset in datasets:
+            print create_data_name(paramset)
+    else:
+        numbered_datasets = list(enumerate(datasets))
+        max_num = len(numbered_datasets) - 1
+        for number, paramset in numbered_datasets:
+            print "{}: {}".format(number, create_data_name(paramset))
+
+        while True:
+            numselect = raw_input("Select a dataset: ")
+            try:
+                numselect = int(numselect)
+            except ValueError:
+                print "Not valid input. No dataset selected." + \
+                    "(Input = '{}')".format(numselect)
+                return
+            if 0 > numselect or numselect > max_num:
+                print "Selection unavailable. Please choose a selection between "+\
+                    "0 and {}".format(max_num)
+                continue
+            return datasets[numselect]
+
+def list_downloaded(type=None):
+    pass
+    # For each type, get list of downloaded datasets by extracting from title,
+    # and seeing whether they have been completed or not
+
+def download_data(param_dict,ask_permission=True):
     # Set directory for this dataset
     dir_path = pathjoin(dir_base,
         param_dict['SITEID'] + "_" + param_dict['TELID'] + "_" + \
@@ -36,7 +61,7 @@ def download_data(param_dict):
         )
     if not os.path.isdir(dir_path):
         os.mkdir(dir_path)
-        
+
     # TODO: Download files into a temporary folder, and then copy them over when
     # the download is completed. Don't erase any existing files until the
     # download is completed.
@@ -69,10 +94,11 @@ def download_data(param_dict):
     # Check length of download
     request_data = r.json()
     total_count = request_data['count']
-    yn_continue = raw_input('Download {} entries? [Y/n] '.format(total_count))
-    if yn_continue not in ('','y','Y'):
-        print "Download aborted."
-        return
+    if ask_permission:
+        yn_continue = raw_input('Download {} entries? [Y/n] '.format(total_count))
+        if yn_continue not in ('','y','Y'):
+            print "Download aborted."
+            return
 
     # Set up loop variables
     try:
@@ -130,5 +156,16 @@ def download_data(param_dict):
 ################################################################################
 
 if __name__ == '__main__':
+    # -a --all - Download all available datasets
+    # -i --incomplete - Download all incomplete datasets (default?)
+    # -s --select - Select datasets for download (default?)
+
+    if '-a' in sys.argv or '--all' in sys.argv:
+        permission_required = False
+    else:
+        permission_required = True
+
+    param_sets = json.load(open("dataset_parameters.txt","r"))
+
     for param_dict in param_sets:
-        download_data(param_dict)
+        download_data(param_dict,permission_required)
