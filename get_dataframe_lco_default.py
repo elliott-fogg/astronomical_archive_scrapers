@@ -3,12 +3,13 @@ import pandas as pd
 import datetime as dt
 from os.path import join as pathjoin
 from numpy import mean, std, floor, log10, finfo
+from download_datasets_lco import create_data_name
 
 desired_columns = ['datetime','BLKUID','EXPTIME','FILTER','INSTRUME','OBJECT',
     'OBSTYPE','PROPID','REQNUM','RLEVEL','RA','DEC']
 
 def merge_datasets(dir_path):
-    dir_path = pathjoin(dir_path,'working_data')
+    dir_path = pathjoin(dir_path)
     datafile_list = filter(lambda x: x.startswith('data'),os.listdir(dir_path))
 
     df = None
@@ -245,9 +246,26 @@ def extract_science_blocks(all_df):
 
     return pd.DataFrame(block_list)
 
-def setup(return_raw=False):
+def list_datasets(select=False):
+    datasets = []
+    for type in os.listdir("data"):
+        for filename in os.listdir(pathjoin("data",type)):
+            datasets.append(pathjoin(type,filename))
+    return datasets
+
+def setup(data_name='lco/coj_2m0a_2016-02-01_2016-08-01',return_raw=False):
+    data_path = pathjoin('data',data_name)
+    if not os.path.isdir(data_path):
+        print "Could not find relative directory '{}'".format(data_path)
+    if not os.path.isfile(pathjoin(data_path,'_complete')):
+        print "Data at relative directory '{}' does not have '_complete' file".format(
+            data_path)
+
+    # Data exists
+    print "Printing all graphs for data in '{}'...".format(data_name)
+
     print "Loading Dataframe..."
-    raw = merge_datasets('data/lco_data/coj_2m0a_2016-02-01_2016-08-01')
+    raw = merge_datasets(data_path)
 
     print "Converting dates to datetime objects..."
     raw['datetime'] = raw['DATE_OBS'].apply(str_to_datetime)
