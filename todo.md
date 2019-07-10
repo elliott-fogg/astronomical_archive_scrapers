@@ -5,4 +5,6 @@
 * Extract cadences of exposure patterns from the data
 Might have to do this by eye, and may have to group OGG and COJ data.
 
-# Fix the SSH key issue
+## SSH issue fixed
+Had to set the remote url from 'http://github.com/...' to 
+'ssh://git@github.com/...'
