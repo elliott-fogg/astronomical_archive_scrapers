@@ -1,11 +1,13 @@
 import plotly.offline as py
 import plotly.graph_objs as go
 from get_dataframe_lco_default import *
-import datetime
+import datetime, re
 from numpy import log10, finfo
+from os.path import join as pathjoin
 
 # TODO: Ensure all graphs have correct units, axis labels and titles
 #       Check fits data for 0-second spectrum frames
+
 
 ## Patterns by Proposal
 def print_proposal_patterns(block_list):
@@ -690,9 +692,14 @@ def plot_instrument_time(bl):
 # Distribution of observation-starts over the semester (e.g. chunk into 5-day
 # bins) for each proposal.
 
-def plot_all_graphs():
+def plot_graphs(dataset_fullname):
     #
-    df, bl = setup()
+    if not os.path.isdir("plots"):
+        os.mkdir("plots")
+    #
+    df, bl = setup(dataset_fullname)
+    #
+    print "Plotting graphs for 'dataset_fullname'"
     #
     plot_obstype_time_distribution(df)
     #
@@ -720,6 +727,69 @@ def clear_all_graphs():
     if yesno in ('y','Y'):
         pass
 
+
+def plot_all():
+    # Select dataset(s) to run for
+
+    # Get list of all datasets
+    # Number, display datasets
+    # Accept input of datasets
+    # Confirm?
+    # Execute for each dataset
+    available_datasets = []
+    dataset_type_list = os.listdir("data")
+    for dataset_type in dataset_type_list:
+        for dataset_name in os.listdir(pathjoin("data",dataset_type)):
+            dataset_fullname = pathjoin(dataset_type,dataset_name)
+            if os.path.isfile(pathjoin("data",dataset_fullname,"_complete")):
+                available_datasets.append(dataset_fullname)
+
+    if len(available_datasets) == 0:
+        print "No completed datasets available."
+        return
+
+    counter = 0
+    print "\nAvailable Datasets:"
+    for dataset_fullname in available_datasets:
+        print "{}: {}".format(counter, re.sub("[_/]", " ", dataset_fullname))
+        counter += 1
+
+    no_errors = False
+    while no_errors == False:
+        no_errors = True
+
+        selection = raw_input("\nSelect datasets to plot, or 'N' to abort: ").split()
+        valid_selections = []
+
+        for i in selection:
+            if i in ('n','N'):
+                print "Plotting aborted by request."
+                return
+            try:
+                i = int(i)
+            except ValueError:
+                no_errors = False
+                print "'{}' is not valid.".format(i)
+                print "Input only space-separated integers."
+                continue
+            if i >= len(available_datasets) or i < 0:
+                no_errors = False
+                print "'{}' is beyond allowed values.".format(i)
+                continue
+            valid_selections.append(i)
+
+    print "\nThe following datasets were selected:"
+    for i in valid_selections:
+        print "* " + re.sub("[_/]", " ", available_datasets[i])
+    yesno = raw_input("\nIs this correct? [y/N] ")
+    if yesno in ('y','Y'):
+        for i in valid_selections:
+            plot_graphs(available_datasets[i])
+    else:
+        print "Plotting aborted."
+
+
+
 ## Try and extract the mean cadence for repeated observations (repeated meaning
 #   same pattern, propid, target). Get the average gap for each proposal, or
 #   each type of pattern (with each proposal having patterns distinct from other
@@ -731,3 +801,5 @@ if __name__ == '__main__':
     yesno = raw_input('Run IPython setup? [y/N] ')
     if yesno in ('y','Y'):
         df, bl, raw_df = setup(True)
+    else:
+        plot_all()
