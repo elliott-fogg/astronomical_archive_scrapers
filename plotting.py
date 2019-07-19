@@ -803,7 +803,7 @@ def run_from_ipython():
 ################################################################################
 
 if __name__ == '__main__':
-    if run_from_ipython():
+    if run_from_ipython(): 
         df, bl, raw_df = setup(True)
     else:
         plot_all()
