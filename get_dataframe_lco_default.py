@@ -294,4 +294,4 @@ def setup(data_name='lco/coj_2m0a_2016-02-01_2016-08-01',return_raw=False):
         return df, block_list
 
 if __name__ == '__main__':
-    df, bl, raw = setup(True)
+    df, bl, raw = setup(return_raw=True)
