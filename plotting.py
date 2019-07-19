@@ -788,7 +788,12 @@ def plot_all():
     else:
         print "Plotting aborted."
 
-
+def run_from_ipython():
+    try:
+        __IPYTHON__
+        return True
+    except NameError:
+        return False
 
 ## Try and extract the mean cadence for repeated observations (repeated meaning
 #   same pattern, propid, target). Get the average gap for each proposal, or
@@ -798,8 +803,7 @@ def plot_all():
 ################################################################################
 
 if __name__ == '__main__':
-    yesno = raw_input('Run IPython setup? [y/N] ')
-    if yesno in ('y','Y'):
+    if run_from_ipython():
         df, bl, raw_df = setup(True)
     else:
         plot_all()
