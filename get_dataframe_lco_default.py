@@ -67,8 +67,8 @@ def reduce_frames(df):
 
     resultant_frames = len(new_df)
     if resultant_frames != expected_frames:
-        print "Unexpected number of frames returned: {} expected, {} received.".format(\
-            expected_frames, resultant_frames)
+        print("Unexpected number of frames returned: {} expected, {} received.".format(\
+            expected_frames, resultant_frames))
     return new_df
 
 def is_science_propid(propid):
@@ -96,7 +96,7 @@ def get_pattern(block):
         index=False):
         pattern.append( (row[0],row[1],row[2],row[3]) )
     if len(pattern) < l1:
-        print "PROBLEM - mismatched lengths"
+        print("PROBLEM - mismatched lengths")
     return pattern
 
 def condense_pattern(pattern_tuple):
@@ -133,15 +133,15 @@ def extract_target(block):
                 # Due to telescope not moving before initial calibration
                 return block.OBJECT.iloc[-1]
             else:
-                print "FAILED SUBSET CHECK:"
-                print block.iloc[2:]
-                print ""
-                print block
-                print "\n"
+                print("FAILED SUBSET CHECK:")
+                print(block.iloc[2:])
+                print("")
+                print(block)
+                print("\n")
         else:
-            print "FAILED TYPE CHECK:"
-            print block
-            print ""
+            print("FAILED TYPE CHECK:")
+            print(block)
+            print("")
 
     # If all else fails, return tuple of all targets
     return tuple(sorted(block.OBJECT.unique()))
@@ -158,8 +158,8 @@ def extract_science_blocks(all_df):
         # propid
         propid_list = [ x for x in block.PROPID.unique() ]
         if len(propid_list) > 1:
-            print "ERROR: Block with multiple science propids"
-            print propid_list
+            print("ERROR: Block with multiple science propids")
+            print(propid_list)
             return None
         propid = propid_list[0]
         # Get the first and last rows of the block
@@ -256,36 +256,36 @@ def list_datasets(select=False):
 def setup(data_name='lco/coj_2m0a_2016-02-01_2016-08-01',return_raw=False):
     data_path = pathjoin('data',data_name)
     if not os.path.isdir(data_path):
-        print "Could not find relative directory '{}'".format(data_path)
+        print("Could not find relative directory '{}'".format(data_path))
     if not os.path.isfile(pathjoin(data_path,'_complete')):
-        print "Data at relative directory '{}' does not have '_complete' file".format(
-            data_path)
+        print("Data at relative directory '{}' does not have '_complete' file".format(
+            data_path))
 
     # Data exists
-    print "Printing all graphs for data in '{}'...".format(data_name)
+    print("Printing all graphs for data in '{}'...".format(data_name))
 
-    print "Loading Dataframe..."
+    print("Loading Dataframe...")
     raw = merge_datasets(data_path)
 
-    print "Converting dates to datetime objects..."
+    print("Converting dates to datetime objects...")
     raw['datetime'] = raw['DATE_OBS'].apply(str_to_datetime)
 
-    print "Extracting RA and Dec..."
+    print("Extracting RA and Dec...")
     raw[['RA','DEC']] = raw['area'].apply(get_centroid)
 
-    print "Dropping excess columns..."
+    print("Dropping excess columns...")
     df = raw[ desired_columns ]
 
-    print "Reducing frames..."
+    print("Reducing frames...")
     df = reduce_frames(df)
 
-    print "Filling empty proposal IDs..."
+    print("Filling empty proposal IDs...")
     df['PROPID'] = df['PROPID'].apply(fill_empty_proposal)
 
-    print "Sorting frames by date..."
+    print("Sorting frames by date...")
     df = df.sort_values('datetime').reset_index(drop=True)
 
-    print "Extracting science blocks..."
+    print("Extracting science blocks...")
     block_list = extract_science_blocks(df)
 
     if return_raw:

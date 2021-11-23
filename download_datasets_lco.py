@@ -1,5 +1,6 @@
 import requests, sys, json, os, datetime
-from urllib import urlencode
+import urllib
+# from urllib import urlencode
 from os.path import dirname, abspath
 from os.path import join as pathjoin
 
@@ -18,8 +19,8 @@ def create_data_name(param_dict):
             "_".join([param_dict['SITEID'],param_dict['TELID'],
                 param_dict['start'].split()[0], param_dict['end'].split()[0]]))
     else:
-        print "No valid type in param_dict:"
-        print param_dict
+        print("No valid type in param_dict:")
+        print(param_dict)
         return
     return data_name
 
@@ -27,24 +28,24 @@ def list_datasets(select=False):
     datasets = json.load(open("dataset_parameters.txt","r"))
     if not select:
         for paramset in datasets:
-            print create_data_name(paramset)
+            print(create_data_name(paramset))
     else:
         numbered_datasets = list(enumerate(datasets))
         max_num = len(numbered_datasets) - 1
         for number, paramset in numbered_datasets:
-            print "{}: {}".format(number, create_data_name(paramset))
+            print("{}: {}".format(number, create_data_name(paramset)))
 
         while True:
-            numselect = raw_input("Select a dataset: ")
+            numselect = input("Select a dataset: ")
             try:
                 numselect = int(numselect)
             except ValueError:
-                print "Not valid input. No dataset selected." + \
-                    "(Input = '{}')".format(numselect)
+                print("Not valid input. No dataset selected." + \
+                    "(Input = '{}')".format(numselect))
                 return
             if 0 > numselect or numselect > max_num:
-                print "Selection unavailable. Please choose a selection between "+\
-                    "0 and {}".format(max_num)
+                print("Selection unavailable. Please choose a selection between "+\
+                    "0 and {}".format(max_num))
                 continue
             return datasets[numselect]
 
@@ -81,23 +82,25 @@ def download_data(param_dict,ask_permission=True):
     #         return
 
     url_base = "https://archive-api.lco.global/frames/?"
-    encoded_params = urlencode(param_dict)
+    encoded_params = urllib.parse.urlencode(param_dict)
+    # encoded_params = urllib.parse.quote(param_dict)
+    # encoded_params = urlencode(param_dict)
     url = url_base + encoded_params
 
     # Initial Request to check success and entry number
     r = requests.get(url=url)
     if r.status_code != 200:
-        print "Request Failed. Status Code: {}; Reason: {}".format(\
-            r.status_code, r.reason)
+        print("Request Failed. Status Code: {}; Reason: {}".format(\
+            r.status_code, r.reason))
         return
 
     # Check length of download
     request_data = r.json()
     total_count = request_data['count']
     if ask_permission:
-        yn_continue = raw_input('Download {} entries? [Y/n] '.format(total_count))
+        yn_continue = input('Download {} entries? [Y/n] '.format(total_count))
         if yn_continue not in ('','y','Y'):
-            print "Download aborted."
+            print("Download aborted.")
             return
 
     # Set up loop variables
@@ -136,8 +139,8 @@ def download_data(param_dict,ask_permission=True):
 
         r = requests.get(url=next_url)
         if r.status_code != 200:
-            print "Request Failed. Status Code: {}; Reason: {}".format(\
-                r.status_code, r.reason)
+            print("Request Failed. Status Code: {}; Reason: {}".format(\
+                r.status_code, r.reason))
             return
 
         request_data = r.json()
@@ -151,7 +154,7 @@ def download_data(param_dict,ask_permission=True):
     with open(completefile_path,"w") as cfile:
         cfile.write(str(datetime.datetime.now()))
 
-    print "\nDownload of {} files comlpeted".format(total_count)
+    print("\nDownload of {} files comlpeted".format(total_count))
 
 ################################################################################
 

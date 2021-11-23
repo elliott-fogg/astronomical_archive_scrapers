@@ -11,7 +11,7 @@ desired_columns = ['datetime','BLKUID','EXPTIME','FILTER','INSTRUME','OBJECT',
     'OBSTYPE','PROPID','REQNUM','RLEVEL','RA','DEC']
 
 def merge_datasets(dir_path):
-    print "Loading Dataframe..."
+    print("Loading Dataframe...")
     dir_path = pathjoin(dir_path,'working_data')
     datafile_list = filter(lambda x: x.startswith('data'),os.listdir(dir_path))
 
@@ -37,7 +37,7 @@ def str_to_datetime(date_str):
         return dt.datetime.strptime(date_str,"%Y-%m-%dT%H:%M:%SZ")
 
 def convert_dates_obs(df):
-    print "Converting DATE_OBS values to datetime objects..."
+    print("Converting DATE_OBS values to datetime objects...")
     df['datetime'] = df['DATE_OBS'].apply(str_to_datetime)
     return df
 
@@ -56,7 +56,7 @@ def get_centroid(area):
     return pd.Series((mean(ra), mean(dec)))
 
 def add_ra_dec(df):
-    print "Converting Areas to RA and DEC..."
+    print("Converting Areas to RA and DEC...")
     df[['RA','DEC']] = df['area'].apply(get_centroid)
     return df
 
@@ -72,7 +72,7 @@ def remove_unnecessary_columns(df):
     return df
 
 def reduce_frames(df):
-    print "Reducing frames..."
+    print("Reducing frames...")
     obs_groups = df.groupby('datetime')
     expected_frames = len(obs_groups)
 
@@ -83,8 +83,8 @@ def reduce_frames(df):
 
     resultant_frames = len(new_df)
     if resultant_frames != expected_frames:
-        print "Unexpected number of frames returned: {} expected, {} received.".format(\
-            expected_frames, resultant_frames)
+        print("Unexpected number of frames returned: {} expected, {} received.".format(\
+            expected_frames, resultant_frames))
     return new_df
 
 def check_groups(df,group_on,check,look_for=None):
@@ -92,36 +92,36 @@ def check_groups(df,group_on,check,look_for=None):
     while True:
         val, group = next(grouper)
         if len(group) > 1:
-            print group[check].unique()
+            print(group[check].unique())
             if look_for != None:
-                print group.loc[:,look_for]
+                print(group.loc[:,look_for])
             x = raw_input("")
 
 def loop_through_requests(df):
     group_by_reqnum = df.groupby('REQNUM')
-    print "{} Users Requests in database".format(len(group_by_reqnum))
+    print("{} Users Requests in database".format(len(group_by_reqnum)))
     yield
 
     show_columns = ['id','EXPTIME','OBSTYPE','OBJECT','INSTRUME','FILTER','RLEVEL']
     for reqnum, g_reqnum in group_by_reqnum:
         group_by_start = g_reqnum.groupby('DATE_OBS')
-        print "REQUEST: {}, Number of Exposures: {}".format(reqnum,len(group_by_start))
+        print("REQUEST: {}, Number of Exposures: {}".format(reqnum,len(group_by_start)))
         exp_number = 0
 
         for start_time, g_time in group_by_start:
             exp_number += 1
-            print "\n\nExposure {}, Starts at {}:\n".format(\
-                exp_number, clean_date(start_time))
-            print g_time.loc[:,show_columns]
-            print ""
+            print("\n\nExposure {}, Starts at {}:\n".format(\
+                exp_number, clean_date(start_time)))
+            print(g_time.loc[:,show_columns])
+            print("")
         yield
 
 def separate_autonomous_requests(df):
     df_grouped = df.groupby('REQNUM')
     for value, group in df_grouped:
         if len(group['PROPID'].unique()) > 1:
-            print value, "-", group['PROPID'].unique()
-    print "Unique PropIDs printed."
+            print(value, "-", group['PROPID'].unique())
+    print("Unique PropIDs printed.")
 
 def check_obs_structure(df):
     d_c = ['id','DATE_OBS','OBSTYPE','RLEVEL','PROPID']
@@ -134,12 +134,12 @@ def check_obs_structure(df):
         no_reduction = no_catalog.loc[ no_catalog['RLEVEL'] == 0 ]
         if len(no_reduction) != 1:
             count += 1
-            print group.loc[:, d_c]
+            print(group.loc[:, d_c])
             yield
         # if len(group['OBSTYPE'].unique()) > 1 and 'CATALOG' not in group['OBSTYPE'].unique():
         #     print value, "-", group['OBSTYPE'].unique()
-    print "All observation frame groups checked."
-    print "{} / {} groups do not fit expectations".format(count, total_count)
+    print("All observation frame groups checked.")
+    print("{} / {} groups do not fit expectations".format(count, total_count))
 
 def location_check(df):
     g_requests = df.groupby('REQNUM')
@@ -151,7 +151,7 @@ def get_proposal_data(df):
     df = convert_dates_obs(df)
     df = add_ra_dec(df)
     # Split all information up into proposals
-    print "Grouping frames..."
+    print("Grouping frames...")
     total_frames = 0
     proposal_groups = df.groupby('PROPID')
     for propid, prop_group in proposal_groups:
@@ -161,13 +161,13 @@ def get_proposal_data(df):
             indv_requests = target_request_group.groupby('REQNUM')
             target_request_numbers.append(len(indv_requests))
             if len(indv_requests) == 0:
-                print "0 found!"
-                print target, propid
-                print ""
+                print("0 found!")
+                print(target, propid)
+                print("")
             total_frames += len(target_request_group)
             for reqnum, request_frames in indv_requests:
                 observations = request_frames.groupby('datetime')
-        print "{} - {} targets {}".format(propid, len(target_requests), target_request_numbers)
+        print("{} - {} targets {}".format(propid, len(target_requests), target_request_numbers))
 
 
 
@@ -185,8 +185,8 @@ def split_into_user_requests(df):
             for reqnum, request_frames in indv_requests:
                 observations = request_frames.groupby('DATE_OBS')
                 target_requests.append(len(request_frames))
-            print "{} - {}: {}".format(propid, target, target_requests)
-        print ""
+            print("{} - {}: {}".format(propid, target, target_requests))
+        print("")
 
 
 def obtain_requests(raw_df):
@@ -205,7 +205,7 @@ def obtain_requests(raw_df):
     for reqnum, r_group in select_df.groupby('REQNUM'):
         propid_list = list(r_group['PROPID'].unique())
         if len(propid_list) > 1:
-            print "ERROR! - Request group with more than 1 propID"
+            print("ERROR! - Request group with more than 1 propID")
             return
         propid = propid_list[0]
         observation_list = []
@@ -219,7 +219,7 @@ def obtain_requests(raw_df):
             for key in identical_cols:
                 val_list = list(obs_set[key].unique())
                 if len(val_list) > 1:
-                    print "Unexpected multiple values for '{}' for a single observation".format(key)
+                    print("Unexpected multiple values for '{}' for a single observation".format(key))
                     return
                 obs_params[key] = val_list[0]
             # Extract centroid
@@ -249,7 +249,7 @@ def setup():
     df = extract_additional_information(df)
 
 def plot_data(y_value_dict,x_value_list):
-    print "Plotting..."
+    print("Plotting...")
     bar_data = [
         go.Bar(
             x= x_value_list,
@@ -272,7 +272,7 @@ def plot_data(y_value_dict,x_value_list):
     py.plot(fig,filename='plots/stacked-bar.html')
 
 def frame_ra_distribution(df):
-    print "Counting RA values..."
+    print("Counting RA values...")
     # Convert RA to hours
     # Convert Exposure time to hours
     hour_intervals = 4
@@ -300,11 +300,11 @@ def frame_ra_distribution(df):
         try:
             ra_bin = int(ra / 360. * total_bins)
         except Exception as e:
-            print e
-            print ra
-            print type(ra)
-            print row['RA'].iloc[0]
-            print ""
+            print(e)
+            print(ra)
+            print(type(ra))
+            print(row['RA'].iloc[0])
+            print("")
 
         try:
             proposal_ra[proposal_id][ra_bin] += exposure / 3600.
@@ -315,7 +315,7 @@ def frame_ra_distribution(df):
     plot_data(proposal_ra,[ i / hour_intervals for i in range(24*hour_intervals)])
 
 def plot_exposure_times(df):
-    print "Counting exposure times..."
+    print("Counting exposure times...")
     obs_frames = df.groupby('datetime')
     exposure_times = {}
     for time, framelist in obs_frames:
@@ -332,7 +332,7 @@ def plot_exposure_times(df):
     max_value = int(max(x_values)) + 1
     min_value = int(min(x_values))
 
-    print max_value, min_value
+    print(max_value, min_value)
 
     x_bins = [ round(10**(i / 10.),1) for i in range(min_value*10, max_value*10, 1) ]
     y_bins = [ 0 for i in x_bins ]
@@ -341,7 +341,7 @@ def plot_exposure_times(df):
         x_value = log10(float(x))
         bin = int(floor((x_value - min_value) / 0.1))
         y_bins[bin] += y
-    print x_bins
+    print(x_bins)
 
     bar_data = [
         go.Bar(
@@ -371,7 +371,7 @@ def contiguous(df):
 
     for val, num in blkuid_dict.items():
         if num > 1:
-            print val, num
+            print(val, num)
         else:
             del blkuid_dict[val]
 
@@ -380,14 +380,14 @@ def contiguous(df):
 def check_contiguous(df,blkuid):
     for i, g in df.groupby([(df.BLKUID != df.BLKUID.shift()).cumsum()]):
         if tuple(g.BLKUID.unique())[0] == blkuid:
-            print g
-            print ""
+            print(g)
+            print("")
 
 def verify_contiguous(df,blkuid):
-    print blkuid
+    print(blkuid)
     subset = df[ df.BLKUID == blkuid ]
-    print subset['OBSTYPE'].unique()
-    print subset['PROPID'].unique()
+    print(subset['OBSTYPE'].unique())
+    print(subset['PROPID'].unique())
 
 def check_calibration(df,blkuid):
     subset = df[ df.BLKUID == blkuid ]
@@ -408,7 +408,7 @@ def vc(df):
                 interleafed_types.add(t)
             # print "\n---\n"
         #verify_contiguous(df,blkuid)
-    print interleafed_types
+    print(interleafed_types)
 
 def get_inbetween(df,blkuid,param):
     subset = df[ df.BLKUID == blkuid ]
@@ -423,7 +423,7 @@ def get_time_diff(df,blkuid):
     start_time = subset.datetime.min()
     end_time = subset.datetime.max()
     time_diff = end_time - start_time
-    print time_diff
+    print(time_diff)
 
 # def contiguous(df):
 #     reqnum_dict = {}
