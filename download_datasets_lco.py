@@ -93,10 +93,12 @@ def dataset_status(paramsets):
 
         print(f"{data_name} [{total_count}] - {status}")
 
+
 def list_param_files():
     for f in os.listdir():
         if f.split(".")[-1] == "json":
             print(f)
+
 
 def request_from_param_dict(param_dict):
     encoded_params = urllib.parse.urlencode(param_dict)
@@ -234,7 +236,6 @@ def parse_args(cl_args):
     args = parser.parse_args(cl_args)
 
     return args
-
 
 ################################################################################
 
