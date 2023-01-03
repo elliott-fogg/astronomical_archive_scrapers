@@ -1,0 +1,59 @@
+[
+    {
+        "start": "2016-02-01 00:00",
+        "end": "2016-08-01 00:00",
+        "public": "true",
+        "SITEID": "coj",
+        "TELID": "2m0a"
+    },
+    {
+        "start": "2015-08-01 00:00",
+        "end": "2016-02-01 00:00",
+        "public": "true",
+        "SITEID": "coj",
+        "TELID": "2m0a"
+    },
+    {
+        "start": "2015-02-01 00:00",
+        "end": "2015-08-01 00:00",
+        "public": "true",
+        "SITEID": "coj",
+        "TELID": "2m0a"
+    },
+    {
+        "start": "2016-08-01 00:00",
+        "end": "2017-02-01 00:00",
+        "public": "true",
+        "SITEID": "coj",
+        "TELID": "2m0a"
+    },
+
+    {
+        "start": "2016-02-01 00:00",
+        "end": "2016-08-01 00:00",
+        "public": "true",
+        "SITEID": "ogg",
+        "TELID": "2m0a"
+    },
+    {
+        "start": "2015-02-01 00:00",
+        "end": "2015-08-01 00:00",
+        "public": "true",
+        "SITEID": "ogg",
+        "TELID": "2m0a"
+    },
+    {
+        "start": "2015-08-01 00:00",
+        "end": "2016-02-01 00:00",
+        "public": "true",
+        "SITEID": "ogg",
+        "TELID": "2m0a"
+    },
+    {
+        "start": "2016-08-01 00:00",
+        "end": "2017-02-01 00:00",
+        "public": "true",
+        "SITEID": "ogg",
+        "TELID": "2m0a"
+    }
+]
