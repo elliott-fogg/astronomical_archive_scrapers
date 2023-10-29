@@ -25,8 +25,9 @@ def zip_old_data(clear=False):
     # Get list of all files to copy across
     filelist = []
     for root, dirs, files in os.walk(DATA_DIR):
-        filelist.append([pathjoin(root, file),
-                         os.path.relpath(pathjoin(root, file), DATA_DIR)])
+        for file in files:
+            filelist.append([pathjoin(root, file),
+                             os.path.relpath(pathjoin(root, file), DATA_DIR)])
 
     # If no files exist, abort zipping
     if len(filelist) == 0:
@@ -173,6 +174,8 @@ def download_data(param_dict):
     current_counter = 0
     temp_frame_list = []
 
+    print(f"Downloading {data_name}...")
+
     while True:
         sys.stdout.write("\rDownloaded {} / {} ({} files)".format(counter,
                                                                   total_count,
@@ -220,18 +223,20 @@ def download_data(param_dict):
 def parse_args(cl_args):
     parser = argparse.ArgumentParser()
     parser.add_argument("dataset_parameters", action="store", nargs="?",
-                        default="dataset_parameters.json",
+                        default="params_2m_2015-2017.json",
                         help="""Specify a dataset_parameter file to be used.
                         Must be a JSON file. Defaults to
                         'dataset_parameters.json' if not specified.""")
     parser.add_argument("-a", "--all", action="store_true",
                         help="Download all incomplete datasets without asking.")
-    parser.add_argument("-r", "--reset", action="store_true",
+    parser.add_argument("-z", "--zip", action="store_true",
                         help="Zip existing data and clear the data folder.")
     parser.add_argument("-i", "--info", action="store_true",
                         help="List the download status of each dataset.")
     parser.add_argument("-l", "--list", action="store_true",
                            help="List all available parameter files.")
+    parser.add_argument("-n", "--next", nargs="?", const=1, type=int,
+                        help="Initiate the next N downloads.")
 
     args = parser.parse_args(cl_args)
 
@@ -256,7 +261,7 @@ if __name__ == '__main__':
         dataset_status(param_sets)
         sys.exit()
 
-    if args.reset:
+    if args.zip:
         zip_old_data(True)
 
     # Check which datasets are not completed yet
@@ -268,7 +273,10 @@ if __name__ == '__main__':
         else:
             incomplete_datasets.append(param_dict)
 
-    if args.all:
+    if args.next:
+        incomplete_datasets = incomplete_datasets[:args.next]
+
+    if args.all or args.next:
         dataset_status(param_sets)
     else:
         incomplete_datasets = ask_permissions(incomplete_datasets)
