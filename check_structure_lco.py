@@ -6,7 +6,7 @@ from get_dataframe_lco import *
 
 def check_reqnums(df):
     # Check that no simultaneous requests have different REQNUMs
-    print "Checking if all simultaneous frames belong to same request..."
+    print("Checking if all simultaneous frames belong to same request...")
     date_grouper = group_generator(df, 'DATE_OBS')
     triggered = False
     trig_cases = []
@@ -20,15 +20,15 @@ def check_reqnums(df):
         except StopIteration:
             break
     if triggered:
-        print "WARNING: Some frames at identical times have different REQNUMs"
+        print("WARNING: Some frames at identical times have different REQNUMs")
         for case in trig_cases:
-            print case
+            print(case)
     else:
-        print "Success: All simultaneous frames are of the same Requests"
+        print("Success: All simultaneous frames are of the same Requests")
 
 def check_request_homogeneity(df):
     # Check that all frames in each request are from the same proposal?
-    print "Checking homogeneity within requests..."
+    print("Checking homogeneity within requests...")
     params_to_check = ['PROPID','OBJECT','INSTRUME'] # area?
 
     req_grouper = group_generator(df,'REQNUM')
@@ -40,9 +40,9 @@ def check_request_homogeneity(df):
             if len(group) > 1:
                 for param in params_to_check:
                     if len(group[param].unique()) > 1:
-                        print group[param].unique()
+                        print(group[param].unique())
 
-                        print group['OBSTYPE'].unique()
+                        print(group['OBSTYPE'].unique())
                         type_uniques = group['OBSTYPE'].unique()
                         sorted_uniques = sorted(list(type_uniques))
                         tuple_uniques = tuple(sorted_uniques)
@@ -57,11 +57,11 @@ def check_request_homogeneity(df):
 
     for param in params_to_check:
         if param in trigger_cases:
-            print "Multiple unexpected values for {}".format(param)
+            print("Multiple unexpected values for {}".format(param))
         else:
-            print "Parameter '{}' is homogeneous across requests".format(param)
+            print("Parameter '{}' is homogeneous across requests".format(param))
 
-    print multiple_target_type_set
+    print(multiple_target_type_set)
 
 def check_request_areas(df):
     # This one has to be done separately because the contained dicts are not
@@ -71,7 +71,7 @@ def check_request_areas(df):
 def check_exposure_homogeneity(df):
     # Check that all rfames within an exposure have the same EXPTIME, OBJECT,
     #   INSTRUME and FILTER
-    print "Checking homogeneity of frames in the same exposure..."
+    print("Checking homogeneity of frames in the same exposure...")
     params_to_check = ['EXPTIME','OBJECT','INSTRUME','FILTER']
     exp_grouper = group_generator(df,['REQNUM','DATE_OBS'])
     show_columns = ['id','EXPTIME','OBSTYPE','OBJECT','INSTRUME','FILTER','RLEVEL']
@@ -101,21 +101,21 @@ def check_exposure_homogeneity(df):
             break
 
     if len(trig_cases) > 0:
-        print "WARNING: Expected parameters are not homogeneous across exposure frames:"
-        print "Cases of differences:"
+        print("WARNING: Expected parameters are not homogeneous across exposure frames:")
+        print("Cases of differences:")
         for key in trig_cases:
-            print "{}: {}".format(key,trig_cases[key])
+            print("{}: {}".format(key,trig_cases[key]))
     else:
-        print "Success: exposure frames are indeed homogeneous"
+        print("Success: exposure frames are indeed homogeneous")
 
     for num in sorted(frame_nums.keys()):
-        print "Exposures with {} frame(s): {}".format(num,frame_nums[num])
+        print("Exposures with {} frame(s): {}".format(num,frame_nums[num]))
 
     for num in frame_num_examples:
         types = set()
         for g in frame_num_examples[num]:
             types.update(set(g['OBSTYPE'].unique()))
-        print "{}: {}".format(num,types)
+        print("{}: {}".format(num,types))
 
 # def check_arc_lampflat_previous_exposure(df):
 #     # For spectrum exposures preceeded by a lampflat and arc, sometimes the
@@ -158,7 +158,7 @@ def check_exposure_homogeneity(df):
 
 def reduce_frames(df):
     obs_groups = df.groupby('datetime')
-    print "Expected number of frames:", len(obs_groups)
+    print("Expected number of frames:", len(obs_groups))
 
     for d, obs_frames in obs_groups:
         temp = obs_frames[ obs_frames['RLEVEL'] == obs_frames['RLEVEL'].max() ]
@@ -167,16 +167,16 @@ def reduce_frames(df):
             if len(pd.unique(unique_values)) == 1:
                 for c in temp[['datetime','EXPTIME','FILTER','INSTRUME','OBJECT','OBSTYPE','PROPID','REQNUM','RLEVEL','RA','DEC']].columns:
                     if len(temp[c].unique()) > 1:
-                        print temp[c]
+                        print(emp[c])
             else:
-                print pd.unique(unique_values)
+                print(d.unique(unique_values))
 
     new_df = pd.concat([
         obs_frames[ obs_frames['RLEVEL'] == obs_frames['RLEVEL'].max() ]
         for d, obs_frames in obs_groups ]
     )
-    print "Actual number of frames:", len(new_df)
-    print "Success!"
+    print("Actual number of frames:", len(new_df))
+    print("Success!")
 
 ################################################################################
 

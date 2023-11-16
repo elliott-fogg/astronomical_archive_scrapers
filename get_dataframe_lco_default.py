@@ -254,9 +254,10 @@ def list_datasets(select=False):
     return datasets
 
 def setup(data_name='lco/coj_2m0a_2016-02-01_2016-08-01',return_raw=False):
-    data_path = pathjoin('data',data_name)
+    data_path = os.path.join("data2", "lco", "coj_2m0a_2016-02-01_2016-08-01")
     if not os.path.isdir(data_path):
         print("Could not find relative directory '{}'".format(data_path))
+        return
     if not os.path.isfile(pathjoin(data_path,'_complete')):
         print("Data at relative directory '{}' does not have '_complete' file".format(
             data_path))
@@ -289,9 +290,9 @@ def setup(data_name='lco/coj_2m0a_2016-02-01_2016-08-01',return_raw=False):
     block_list = extract_science_blocks(df)
 
     if return_raw:
-        return df, block_list, raw
+        return (df, block_list, raw)
     else:
-        return df, block_list, None
+        return (df, block_list, None)
 
 if __name__ == '__main__':
     df, bl, raw = setup(return_raw=True)
