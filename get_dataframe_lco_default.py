@@ -254,7 +254,9 @@ def list_datasets(select=False):
     return datasets
 
 def setup(data_name='lco/coj_2m0a_2016-02-01_2016-08-01',return_raw=False):
-    data_path = os.path.join("data2", "lco", "coj_2m0a_2016-02-01_2016-08-01")
+    data_path = os.path.join("data2", data_name)
+
+    # data_path = os.path.join("data2", "lco", "coj_2m0a_2016-02-01_2016-08-01")
     if not os.path.isdir(data_path):
         print("Could not find relative directory '{}'".format(data_path))
         return
